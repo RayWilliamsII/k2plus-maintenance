@@ -1,0 +1,6 @@
+# Ignore big archives
+*.tar
+*.tgz
+*.gz
+*.zip
+*.img
