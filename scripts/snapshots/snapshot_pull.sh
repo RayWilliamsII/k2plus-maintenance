@@ -20,6 +20,9 @@ else
   DEST_DIR="$SNAP_CUR"
 fi
 
+SNAPSHOT_EXCLUDES_FILE="$BASE_DIR/config/snapshot_excludes.default.tsv"
+SNAPSHOT_PATHS_FILE="$BASE_DIR/config/snapshot_paths.default.tsv"
+
 SSH_OPTS=(
   -o BatchMode=yes
   -o IdentitiesOnly=yes
@@ -32,25 +35,19 @@ RSYNC_FLAGS=(
   --no-group
 )
 
-INCLUDE_PATHS=(
-  "/mnt/UDISK/printer_data"
-  "/mnt/UDISK/root"
-  "/mnt/UDISK/creality"
-  "/overlay/upper"
-  "/mnt/UDISK/opt"
-  "/rom"
-)
+RRSYNC_EXCLUDES=()
 
-RSYNC_EXCLUDES=(
-  "--exclude=/mnt/UDISK/printer_data/logs/***"
-  "--exclude=/mnt/UDISK/creality/userdata/log/***"
-  "--exclude=/mnt/UDISK/creality/userdata/delay_image/***"
-  "--exclude=/mnt/UDISK/timelapse/***"
-  "--exclude=/mnt/UDISK/ai_image/***"
-  "--exclude=/mnt/UDISK/layers_image/***"
-  "--exclude=/mnt/UDISK/tmp/***"
-  "--exclude=/mnt/UDISK/opt/tmp/***"
-)
+if [[ -f "$SNAPSHOT_EXCLUDES_FILE" ]]; then
+  while IFS=$'\t' read -r exclude_pattern exclude_description; do
+    [[ -z "${exclude_pattern:-}" ]] && continue
+    [[ "$exclude_pattern" =~ ^# ]] && continue
+
+    RSYNC_EXCLUDES+=("--exclude=$exclude_pattern")
+  done < "$SNAPSHOT_EXCLUDES_FILE"
+else
+  echo "No snapshot excludes config found: $SNAPSHOT_EXCLUDES_FILE"
+  echo "Continuing without configured excludes."
+fi
 
 ensure_safe_dest() {
   local d="$1"
@@ -71,17 +68,30 @@ clear_snapshot_dest() {
   local d="$1"
 
   if find "$d" -mindepth 1 -maxdepth 1 | read -r _; then
-    echo
-    echo "WARNING: Snapshot directory is not empty:"
-    echo "  $d"
-    echo
-    echo "Its contents will be permanently removed."
-    printf "Proceed? [y/N]: "
+    local prompt_target="/dev/tty"
 
-    read -r reply
+    if [ ! -w "$prompt_target" ] || [ ! -r "$prompt_target" ]; then
+      prompt_target="/dev/stderr"
+    fi
+
+    {
+      echo
+      echo "========================================"
+      echo "WARNING: Snapshot directory is not empty"
+      echo "========================================"
+      echo
+      echo "Target:"
+      echo "  $d"
+      echo
+      echo "Its contents will be permanently removed."
+      echo
+      printf "Proceed? [y/N]: "
+    } >"$prompt_target"
+
+    read -r reply <"$prompt_target"
 
     if [[ "$reply" != "y" ]]; then
-      echo "Aborted by user."
+      echo "Aborted by user." >"$prompt_target"
       exit 10
     fi
 
@@ -96,6 +106,11 @@ command -v rsync >/dev/null 2>&1 || {
   exit 4
 }
 
+if [[ ! -f "$SNAPSHOT_PATHS_FILE" ]]; then
+  echo "Missing snapshot path config: $SNAPSHOT_PATHS_FILE" >&2
+  exit 5
+fi
+
 echo "== Connectivity check =="
 ssh "${SSH_OPTS[@]}" "$K2_USER@$K2_HOST" "echo ok" >/dev/null
 
@@ -107,22 +122,68 @@ echo "== Pulling snapshot =="
 echo "Host: $K2_USER@$K2_HOST"
 echo "Mode: $MODE"
 echo "Destination: $DEST_DIR"
+echo "Snapshot path config: $SNAPSHOT_PATHS_FILE"
 echo
 
-for src in "${INCLUDE_PATHS[@]}"; do
+while IFS=$'\t' read -r disposition src description; do
+  [[ -z "${disposition:-}" ]] && continue
+  [[ "$disposition" =~ ^# ]] && continue
+
+  description="${description:-}"
+
+  case "$disposition" in
+    required|optional|informational) ;;
+    *)
+      echo "Invalid snapshot path disposition: $disposition for path: ${src:-}" >&2
+      exit 6
+      ;;
+  esac
+
+  if [[ -z "${src:-}" ]]; then
+    echo "Invalid snapshot config row: missing path" >&2
+    exit 6
+  fi
+
+  echo "-- path: $src"
+  echo "   disposition: $disposition"
+  if [[ -n "$description" ]]; then
+    echo "   description: $description"
+  fi
+
+  if [[ "$disposition" == "informational" ]]; then
+    echo "   action: informational only; not copied"
+    echo
+    continue
+  fi
+
   rel="${src#/}"
   out="$DEST_DIR/$rel"
 
+  echo "   action: checking remote path"
+  if ! ssh "${SSH_OPTS[@]}" "$K2_USER@$K2_HOST" "[ -e '$src' ]"; then
+    if [[ "$disposition" == "required" ]]; then
+      echo "ERROR: required snapshot path is missing: $src" >&2
+      if [[ -n "$description" ]]; then
+        echo "Description: $description" >&2
+      fi
+      exit 7
+    fi
+
+    echo "   action: skipping missing optional path"
+    echo
+    continue
+  fi
+
   mkdir -p "$out"
 
-  echo "-- rsync: $src -> $out"
+  echo "   action: rsync to $out"
   rsync "${RSYNC_FLAGS[@]}" --info=stats2,progress2 \
     "${RSYNC_EXCLUDES[@]}" \
     -e "ssh ${SSH_OPTS[*]}" \
     "$K2_USER@$K2_HOST:$src/" \
     "$out/"
   echo
-done
+done < "$SNAPSHOT_PATHS_FILE"
 
 echo "== Writing snapshot metadata =="
 
@@ -147,6 +208,9 @@ runner_user=$LOCAL_USER
 
 repo_git_branch=$REPO_GIT_BRANCH
 repo_git_commit=$REPO_GIT_COMMIT
+
+snapshot_excludes_file=$SNAPSHOT_EXCLUDES_FILE
+snapshot_paths_file=$SNAPSHOT_PATHS_FILE
 
 remote_uname=$REMOTE_KERNEL
 

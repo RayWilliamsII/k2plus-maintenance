@@ -8,6 +8,5 @@
 # Runtime outputs
 runs/
 
-# Snapshot comparisons
-snapshot_lkg/
-snapshot_current/
+# Snapshots
+snapshot_*/

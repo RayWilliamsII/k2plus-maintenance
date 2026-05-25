@@ -35,13 +35,20 @@ RUNNER_HOST="$(hostname -f 2>/dev/null || hostname)"
 RUNNER_USER="$(whoami)"
 
 # Copy probe to target (no persistence guarantee assumed)
-scp "$PROBE_SCRIPT" "root@$HOST:/tmp/$SCRIPT_BASENAME"
+scp -O "$PROBE_SCRIPT" "root@$HOST:/tmp/$SCRIPT_BASENAME"
 
+START_EPOCH="$(date +%s)"
 set +e
 ssh "root@$HOST" "sh /tmp/$SCRIPT_BASENAME" \
   >"$STDOUT_FILE" \
   2>"$STDERR_FILE"
 EXIT_CODE="$?"
+END_EPOCH="$(date +%s)"
+DURATION_SECONDS="$((END_EPOCH - START_EPOCH))"
+DURATION_FORMATTED="$(printf '%02d:%02d:%02d' \
+  $((DURATION_SECONDS / 3600)) \
+  $(((DURATION_SECONDS % 3600) / 60)) \
+  $((DURATION_SECONDS % 60)))"
 set -e
 
 echo "$EXIT_CODE" > "$EXIT_FILE"
@@ -55,6 +62,10 @@ cat > "$META_FILE" <<EOF
   "run_timestamp": "$TIMESTAMP",
   "runner_host": "$RUNNER_HOST",
   "runner_user": "$RUNNER_USER",
+  "start_epoch": "$START_EPOCH",
+  "end_epoch": "$END_EPOCH",
+  "duration_seconds": "$DURATION_SECONDS",
+  "duration_formatted": "$DURATION_FORMATTED",
   "exit_code": $EXIT_CODE
 }
 EOF

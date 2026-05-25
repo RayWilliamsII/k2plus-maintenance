@@ -1,0 +1,8 @@
+/mnt/UDISK/printer_data/logs/***	Printer logs
+/mnt/UDISK/creality/userdata/log/***	Creality userdata logs
+/mnt/UDISK/creality/userdata/delay_image/***	Delay image/timelapse artifacts
+/mnt/UDISK/timelapse/***	Timelapse output
+/mnt/UDISK/ai_image/***	AI/generated image output
+/mnt/UDISK/layers_image/***	Layer preview images
+/mnt/UDISK/tmp/***	Temporary files
+/mnt/UDISK/opt/tmp/***	Entware temp files

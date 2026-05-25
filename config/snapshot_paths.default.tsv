@@ -1,0 +1,6 @@
+required	/mnt/UDISK/printer_data	Klipper, Moonraker, printer configs/state
+required	/overlay/upper	OpenWrt overlay modifications
+optional	/mnt/UDISK/root	User-installed environment / K2 Improvements
+optional	/mnt/UDISK/creality	Creality persistent userdata
+optional	/mnt/UDISK/opt	Entware packages and libraries
+informational	/rom	Read-only firmware squashfs baseline
