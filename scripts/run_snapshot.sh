@@ -1,22 +1,23 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if [ "$#" -ne 2 ]; then
-  echo "Usage: $0 <host> {lkg|current}" >&2
-  exit 2
-fi
+#if [ "$#" -ne 2 ]; then
+#  echo "Usage: $0 <host> {lkg|current}" >&2
+#  exit 2
+#fi
 
 HOST="$1"
-MODE="$2"
+#MODE="$2:-current"
+MODE="${2:-current}"
 
 if [[ "$MODE" != "lkg" && "$MODE" != "current" ]]; then
-  echo "Usage: $0 <host> {lkg|current}" >&2
+  echo "Usage1: $0 <host> {lkg|current}" >&2
   exit 2
 fi
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TIMESTAMP="$(date +%Y-%m-%dT%H-%M-%S%z)"
-RUN_DIR="$REPO_ROOT/runs/$HOST/$TIMESTAMP"
+RUN_DIR="$REPO_ROOT/runs/$HOST/${TIMESTAMP}_${MODE}"
 
 SNAPSHOT_SCRIPT="$REPO_ROOT/scripts/snapshots/snapshot_pull.sh"
 

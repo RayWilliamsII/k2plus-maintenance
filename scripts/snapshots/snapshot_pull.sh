@@ -5,9 +5,9 @@ K2_HOST="${K2_HOST:-k2plus.local}"
 K2_USER="${K2_USER:-root}"
 BASE_DIR="${BASE_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
 
-MODE="${1:-}"
+MODE="${1:-current}"
 if [[ "$MODE" != "lkg" && "$MODE" != "current" ]]; then
-  echo "Usage: $0 {lkg|current}" >&2
+  echo "Usage: $0 [lkg|current]" >&2
   exit 2
 fi
 
@@ -67,6 +67,30 @@ ensure_safe_dest() {
   fi
 }
 
+clear_snapshot_dest() {
+  local d="$1"
+
+  if find "$d" -mindepth 1 -maxdepth 1 | read -r _; then
+    echo
+    echo "WARNING: Snapshot directory is not empty:"
+    echo "  $d"
+    echo
+    echo "Its contents will be permanently removed."
+    printf "Proceed? [y/N]: "
+
+    read -r reply
+
+    if [[ "$reply" != "y" ]]; then
+      echo "Aborted by user."
+      exit 10
+    fi
+
+    echo
+    echo "== Clearing existing snapshot contents =="
+    find "$d" -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +
+  fi
+}
+
 command -v rsync >/dev/null 2>&1 || {
   echo "rsync is required on cenote." >&2
   exit 4
@@ -77,11 +101,7 @@ ssh "${SSH_OPTS[@]}" "$K2_USER@$K2_HOST" "echo ok" >/dev/null
 
 mkdir -p "$DEST_DIR"
 ensure_safe_dest "$DEST_DIR"
-
-if [[ "$MODE" == "current" ]]; then
-  echo "== Wiping snapshot_current =="
-  find "$DEST_DIR" -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +
-fi
+clear_snapshot_dest "$DEST_DIR"
 
 echo "== Pulling snapshot =="
 echo "Host: $K2_USER@$K2_HOST"
