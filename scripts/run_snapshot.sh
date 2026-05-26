@@ -29,7 +29,6 @@ EXIT_FILE="$RUN_DIR/exit_code.txt"
 META_FILE="$RUN_DIR/meta.json"
 
 SCRIPT_SHA="$(sha256sum "$SNAPSHOT_SCRIPT" | awk '{print $1}')"
-GIT_COMMIT="$(git rev-parse HEAD 2>/dev/null || echo "UNKNOWN")"
 RUNNER_HOST="$(hostname -f 2>/dev/null || hostname)"
 RUNNER_USER="$(whoami)"
 
@@ -55,7 +54,6 @@ cat > "$META_FILE" <<EOF
   "snapshot_mode": "$MODE",
   "snapshot_script": "snapshot_pull.sh",
   "snapshot_script_sha256": "$SCRIPT_SHA",
-  "repo_git_commit": "$GIT_COMMIT",
   "run_timestamp": "$TIMESTAMP",
   "runner_host": "$RUNNER_HOST",
   "runner_user": "$RUNNER_USER",

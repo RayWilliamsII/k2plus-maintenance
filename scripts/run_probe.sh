@@ -30,7 +30,6 @@ META_FILE="$RUN_DIR/meta.json"
 
 SCRIPT_BASENAME="$(basename "$PROBE_SCRIPT")"
 SCRIPT_SHA="$(sha256sum "$PROBE_SCRIPT" | awk '{print $1}')"
-GIT_COMMIT="$(git rev-parse HEAD)"
 RUNNER_HOST="$(hostname -f 2>/dev/null || hostname)"
 RUNNER_USER="$(whoami)"
 
@@ -58,7 +57,6 @@ cat > "$META_FILE" <<EOF
   "target_host": "$HOST",
   "probe_script": "$SCRIPT_BASENAME",
   "probe_script_sha256": "$SCRIPT_SHA",
-  "repo_git_commit": "$GIT_COMMIT",
   "run_timestamp": "$TIMESTAMP",
   "runner_host": "$RUNNER_HOST",
   "runner_user": "$RUNNER_USER",

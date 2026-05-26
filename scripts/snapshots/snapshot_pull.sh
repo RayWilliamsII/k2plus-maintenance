@@ -28,14 +28,7 @@ SSH_OPTS=(
   -o IdentitiesOnly=yes
 )
 
-RSYNC_FLAGS=(
-  -rLt
-  --no-perms
-  --no-owner
-  --no-group
-)
-
-RRSYNC_EXCLUDES=()
+RSYNC_EXCLUDES=()
 
 if [[ -f "$SNAPSHOT_EXCLUDES_FILE" ]]; then
   while IFS=$'\t' read -r exclude_pattern exclude_description; do
@@ -123,9 +116,10 @@ echo "Host: $K2_USER@$K2_HOST"
 echo "Mode: $MODE"
 echo "Destination: $DEST_DIR"
 echo "Snapshot path config: $SNAPSHOT_PATHS_FILE"
+echo "Snapshot excludes config: $SNAPSHOT_EXCLUDES_FILE"
 echo
 
-while IFS=$'\t' read -r disposition src description; do
+while IFS=$'\t' read -r disposition src dereference description; do
   [[ -z "${disposition:-}" ]] && continue
   [[ "$disposition" =~ ^# ]] && continue
 
@@ -144,8 +138,17 @@ while IFS=$'\t' read -r disposition src description; do
     exit 6
   fi
 
+  case "$dereference" in
+    0|1) ;;
+    *)
+      echo "Invalid dereference value: $dereference for path: $src" >&2
+      exit 6
+      ;;
+  esac
+
   echo "-- path: $src"
   echo "   disposition: $disposition"
+  echo "   dereference: $dereference"
   if [[ -n "$description" ]]; then
     echo "   description: $description"
   fi
@@ -160,7 +163,7 @@ while IFS=$'\t' read -r disposition src description; do
   out="$DEST_DIR/$rel"
 
   echo "   action: checking remote path"
-  if ! ssh "${SSH_OPTS[@]}" "$K2_USER@$K2_HOST" "[ -e '$src' ]"; then
+  if ! ssh "${SSH_OPTS[@]}" "$K2_USER@$K2_HOST" "[ -e '$src' ]" </dev/null; then
     if [[ "$disposition" == "required" ]]; then
       echo "ERROR: required snapshot path is missing: $src" >&2
       if [[ -n "$description" ]]; then
@@ -176,19 +179,34 @@ while IFS=$'\t' read -r disposition src description; do
 
   mkdir -p "$out"
 
+  LOCAL_RSYNC_FLAGS=(
+    --no-perms
+    --no-owner
+    --no-group
+  )
+
+  if [[ "$dereference" == "1" ]]; then
+    LOCAL_RSYNC_FLAGS+=(-rLt)
+    DEREF_TEXT="dereference symlinks"
+  else
+    LOCAL_RSYNC_FLAGS+=(-rlt)
+    DEREF_TEXT="preserve symlinks"
+  fi
+
+  echo "   symlink_mode: $DEREF_TEXT"
   echo "   action: rsync to $out"
-  rsync "${RSYNC_FLAGS[@]}" --info=stats2,progress2 \
+
+  rsync "${LOCAL_RSYNC_FLAGS[@]}" --info=stats2,progress2 \
     "${RSYNC_EXCLUDES[@]}" \
     -e "ssh ${SSH_OPTS[*]}" \
     "$K2_USER@$K2_HOST:$src/" \
     "$out/"
+
   echo
 done < "$SNAPSHOT_PATHS_FILE"
 
 echo "== Writing snapshot metadata =="
 
-REPO_GIT_COMMIT="$(git -C "$BASE_DIR" rev-parse HEAD 2>/dev/null || echo UNKNOWN)"
-REPO_GIT_BRANCH="$(git -C "$BASE_DIR" rev-parse --abbrev-ref HEAD 2>/dev/null || echo UNKNOWN)"
 RUN_TS="$(date -Iseconds)"
 LOCAL_HOST="$(hostname -f 2>/dev/null || hostname)"
 LOCAL_USER="$(whoami)"
@@ -205,9 +223,6 @@ target_user=$K2_USER
 
 runner_host=$LOCAL_HOST
 runner_user=$LOCAL_USER
-
-repo_git_branch=$REPO_GIT_BRANCH
-repo_git_commit=$REPO_GIT_COMMIT
 
 snapshot_excludes_file=$SNAPSHOT_EXCLUDES_FILE
 snapshot_paths_file=$SNAPSHOT_PATHS_FILE
