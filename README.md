@@ -34,6 +34,9 @@ Expected layout:
 .
 ├── README.md
 ├── .gitignore
+└── config/
+    ├── snapshot_excludes.default.tsv
+    └── snapshot_paths.default.tsv
 ├── runs/
 ├── snapshot_lkg/
 ├── snapshot_current/
@@ -156,6 +159,40 @@ meta.json
 
 The probe output is for discovery and documentation. It is not treated as the authoritative change-detection mechanism for the project.
 
+`run_all_probes.sh` performs the following actions:
+
+1. iterates over all probes location in `scripts/probes/`;
+2. displays status of each probe as it is executed.
+
+## Snapshot Configuration
+
+Two configuration files can be found in the `config/` directory. These are used to specify which paths will be included within a snapshot and any child paths that will be excluded.
+
+### `config/snapshot_paths.default.tsv`
+
+Contains a tab delimited table consisting of four columns. This file determings which filesystem paths are included in a snapshot. Although the table does not contain column heads, the columns are as follows:
+
+1. Disposition - Contains the value of `required`, `optional`, or `informational`.
+- `required` - Path included in snapshot and run will about if path is not available.
+- `optional` - Path included in snapshot and run will continue if path is not available.
+- `informational` - This is for future implementation.  Currently ignored by snapshot run.
+2. Path - Filesystem path to include in the snapshot.
+3. Dereference - Contains the value of `0` or `1` and specifies whether symbolic links will be followed. Dereferencing will increase the size of the snapshot but can be helpful if trying to track down files overridden by symbolic links.
+- `0` - Symbolic links are not de-referenced.
+- `1` - Symbolic links are de-referenced.
+4. Description - A description of the contents found in the Path.
+
+`All columns must be populated for each path.`
+
+### `config/snapshot_excludes.default.tsv`
+
+Contains a tab-delimited table consisting of two columns.  This file contains filesystem paths that will be excluded from snapshots. This includes items like print job g-code, logs, timelapse videos, etc. Although the table does not contain column heads, the columns are as follows:
+
+1. Path - Filesystem path to exclude from the snapshot.
+2. Description - A description of the contents found in the Path.
+
+`All columns must be populated for each path.`
+
 ## Snapshot Execution Model
 
 Snapshots are executed through:
@@ -173,7 +210,7 @@ or
 ./scripts/run_snapshot.sh k2plus.local
 ```
 
-There are exactly two snapshot directories:
+There are two snapshot directories:
 
 ```text
 snapshot_lkg/
@@ -185,7 +222,7 @@ snapshot_current/
 
 When running either a `lkg` or `current` snapshot and the destination is not empty, you will be prompted to verify that you want to empty the directory.
 
-Snapshots are **file copies for comparison**, not restore images. The snapshot script copies the contents of selected paths as they are accessed on the printer. It dereferences symlinks and preserves modification time, but does not preserve owners, groups, permissions, ACLs, or xattrs.
+Snapshots are **file copies for comparison**, not restore images. The snapshot script copies the contents of selected paths as they are accessed on the printer. It dereferences symlinks and preserves modification time, but does not preserve owners, groups, permissions, ACLs, or xattrs. Once generated, snapshots are not reused by the scripts. You can rename, delete or move them for whatever purpose you need.
 
 The intended workflow is:
 
@@ -454,3 +491,11 @@ snapshot_current/
 ```
 
 using your preferred directory comparison tool.
+
+## Additional Scripts
+
+### `scripts/dropbear_ssh_helper.sh`
+
+Script will validate that a valid SSH connection exists between the workstation and the target K2Plus machine and create a persistent SSH key is approved.  It will also remove any stale keys between the source machine and the K2Plus.
+
+See [dropbear_ssh_README.md](/scripts/helper/dropbear_ssh_README.md)
