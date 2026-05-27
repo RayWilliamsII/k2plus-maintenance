@@ -8,9 +8,9 @@ fi
 
 HOST="$1"
 
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-PROBE_DIR="$REPO_ROOT/scripts/probes"
-RUN_PROBE_SCRIPT="$REPO_ROOT/scripts/run_probe.sh"
+RUN_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+PROBE_DIR="$RUN_ROOT/scripts/probes"
+RUN_PROBE_SCRIPT="$RUN_ROOT/scripts/run_probe.sh"
 
 if [[ ! -x "$RUN_PROBE_SCRIPT" ]]; then
   echo "Missing or non-executable run_probe.sh: $RUN_PROBE_SCRIPT" >&2

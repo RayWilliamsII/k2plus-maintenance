@@ -1,25 +1,20 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-#if [ "$#" -ne 2 ]; then
-#  echo "Usage: $0 <host> {lkg|current}" >&2
-#  exit 2
-#fi
-
-HOST="$1"
-#MODE="$2:-current"
-MODE="${2:-current}"
-
-if [[ "$MODE" != "lkg" && "$MODE" != "current" ]]; then
-  echo "Usage1: $0 <host> {lkg|current}" >&2
+if [ "$#" -lt 1 ] || [ "$#" -gt 3 ]; then
+  echo "Usage: $0 <host> [lkg|current] [snapshot_paths_name]" >&2
   exit 2
 fi
 
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-TIMESTAMP="$(date +%Y-%m-%dT%H-%M-%S%z)"
-RUN_DIR="$REPO_ROOT/runs/$HOST/${TIMESTAMP}_${MODE}"
+HOST="$1"
+MODE="${2:-current}"
+SNAPSHOT_PATH_SET="${3:-default}"
 
-SNAPSHOT_SCRIPT="$REPO_ROOT/scripts/snapshots/snapshot_pull.sh"
+RUN_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+TIMESTAMP="$(date +%Y-%m-%dT%H-%M-%S%z)"
+RUN_DIR="$RUN_ROOT/runs/$HOST/${TIMESTAMP}_${MODE}"
+
+SNAPSHOT_SCRIPT="$RUN_ROOT/scripts/snapshots/snapshot_pull.sh"
 
 mkdir -p "$RUN_DIR"
 
@@ -34,7 +29,7 @@ RUNNER_USER="$(whoami)"
 
 START_EPOCH="$(date +%s)"
 set +e
-K2_HOST="$HOST" BASE_DIR="$REPO_ROOT" "$SNAPSHOT_SCRIPT" "$MODE" \
+K2_HOST="$HOST" RUN_ROOT="$RUN_ROOT" "$SNAPSHOT_SCRIPT" "$MODE" "$SNAPSHOT_PATH_SET" \
   >"$STDOUT_FILE" \
   2>"$STDERR_FILE"
 EXIT_CODE="$?"

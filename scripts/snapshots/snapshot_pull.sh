@@ -6,6 +6,7 @@ K2_USER="${K2_USER:-root}"
 BASE_DIR="${BASE_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
 
 MODE="${1:-current}"
+SNAPSHOT_PATH_SET="${2:-default}"
 if [[ "$MODE" != "lkg" && "$MODE" != "current" ]]; then
   echo "Usage: $0 [lkg|current]" >&2
   exit 2
@@ -21,7 +22,7 @@ else
 fi
 
 SNAPSHOT_EXCLUDES_FILE="$BASE_DIR/config/snapshot_excludes.default.tsv"
-SNAPSHOT_PATHS_FILE="$BASE_DIR/config/snapshot_paths.default.tsv"
+SNAPSHOT_PATHS_FILE="$BASE_DIR/config/snapshot_paths.${SNAPSHOT_PATH_SET}.tsv"
 
 SSH_OPTS=(
   -o BatchMode=yes

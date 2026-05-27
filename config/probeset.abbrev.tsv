@@ -1,0 +1,6 @@
+Capability Probe	1_capability_probe.sh
+Paths and Services	2_paths_and_services.sh
+Web Stack	3_web_stack.sh
+Vendor Web Server Config	4_vendor_web_server_config.sh
+Size Footprint Inventory	5_size_footprint_inventory.sh
+Persistent Directory Inventory	6_persistent_directory_inventory.sh

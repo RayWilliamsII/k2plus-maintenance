@@ -9,7 +9,7 @@ fi
 HOST="$1"
 PROBE_SCRIPT="$2"
 
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+RUN_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TIMESTAMP="$(date +%Y-%m-%dT%H-%M-%S%z)"
 
 PROBE_NAME="$(basename "$PROBE_SCRIPT")"
@@ -17,9 +17,9 @@ PROBE_NAME="${PROBE_NAME%.sh}"
 #PROBE_NAME="$(echo "$PROBE_NAME" | tr -c 'A-Za-z0-9._-' '_')"
 PROBE_NAME="$(printf '%s' "$PROBE_NAME" | tr -c 'A-Za-z0-9._-' '_')"
 
-RUN_DIR="$REPO_ROOT/runs/$HOST/${TIMESTAMP}_${PROBE_NAME}"
+RUN_DIR="$RUN_ROOT/runs/$HOST/${TIMESTAMP}_${PROBE_NAME}"
 #TIMESTAMP="$(date +%Y-%m-%dT%H-%M-%S%z)"
-#RUN_DIR="$REPO_ROOT/runs/$HOST/$TIMESTAMP"
+#RUN_DIR="$RUN_ROOT/runs/$HOST/$TIMESTAMP"
 
 mkdir -p "$RUN_DIR"
 
