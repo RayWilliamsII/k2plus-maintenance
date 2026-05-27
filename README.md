@@ -15,7 +15,7 @@ The snapshots are intended to support **verification**. For example, after refla
 
 ## Project Philosophy
 
-This repository treats the printer as an appliance-like Linux system with several distinct layers:
+This project treats the printer as an appliance-like Linux system with several distinct layers:
 
 | Layer | Meaning |
 |---|---|
@@ -26,22 +26,25 @@ This repository treats the printer as an appliance-like Linux system with severa
 
 A small file is not assumed to be insignificant. A one-line init, config, or symlink change may materially affect printer behavior. The scripts therefore identify and snapshot important locations based on function, not size.
 
-## Repository Layout
+## Project Layout
 
 Expected layout:
 
 ```text
 .
 ├── README.md
-├── .gitignore
 └── config/
+    ├── probeset.abbrev.tsv
     ├── snapshot_excludes.default.tsv
+    ├── snapshot_paths.abbrev.tsv
     └── snapshot_paths.default.tsv
 ├── runs/
 ├── snapshot_lkg/
 ├── snapshot_current/
 └── scripts/
+    ├── run_all_probes.sh
     ├── run_probe.sh
+    ├── run_probeset.sh
     ├── run_snapshot.sh
     ├── probes/
     │   ├── 1_capability_probe.sh
@@ -117,7 +120,7 @@ The artifacts created by the probes are relatively small. However, the snapshots
 |5_size_footprint_inventory.sh|<5 kB|~1 min|
 |6_persistent_directory_inventory.sh|<5 kB|~1 min|
 |7_manifest_inventory.sh|<4 MB|~45 min|
-|snapshot_pull.sh (lgg,current)|<7 GB|~25 min|
+|snapshot_pull.sh (lgg,current)|<7 GB|~25 min|f
 
 ## Probe Execution Model
 
@@ -135,7 +138,7 @@ Example:
 
 `run_probe.sh` performs the following actions:
 
-1. determines the repository root;
+1. determines the run root;
 2. creates a run directory under `runs/<host>/`;
 3. names the run directory using the timestamp and probe script name;
 4. copies the selected probe script to `/tmp` on the printer;
@@ -162,7 +165,34 @@ The probe output is for discovery and documentation. It is not treated as the au
 `run_all_probes.sh` performs the following actions:
 
 1. iterates over all probes location in `scripts/probes/`;
-2. displays status of each probe as it is executed.
+2. displays status of each probe as it is executed
+3. runs all probe scripts found in scripts/probes/ in filename sort order.
+
+## Probe Set Execution Model
+
+Example:
+```bash
+./scripts/run_probeset.sh k2plus.local abbrev
+```
+
+Behavior:
+
+1. loads `config/probeset.<name>.tsv`
+2. executes listed probes in file order
+3. invokes run_probe.sh for each entry
+4. continues through remaining probes even if one probe fails
+5. reports aggregate success/failure at completion
+
+TSV format:
+```
+Display Name<tab>Probe Filename
+```
+
+TSV Example:
+```
+Capability Probe	1_capability_probe.sh
+Paths and Services	2_paths_and_services.sh
+```
 
 ## Snapshot Configuration
 
@@ -175,12 +205,12 @@ Contains a tab delimited table consisting of four columns. This file determings 
 1. Disposition - Contains the value of `required`, `optional`, or `informational`.
 - `required` - Path included in snapshot and run will about if path is not available.
 - `optional` - Path included in snapshot and run will continue if path is not available.
-- `informational` - This is for future implementation.  Currently ignored by snapshot run.
-2. Path - Filesystem path to include in the snapshot.
-3. Dereference - Contains the value of `0` or `1` and specifies whether symbolic links will be followed. Dereferencing will increase the size of the snapshot but can be helpful if trying to track down files overridden by symbolic links.
+- `informational` - Path is documented in snapshot metadata output but is not copied into the snapshot.
+1. Path - Filesystem path to include in the snapshot.
+2. Dereference - Contains the value of `0` or `1` and specifies whether symbolic links will be followed. Dereferencing will increase the size of the snapshot but can be helpful if trying to track down files overridden by symbolic links.
 - `0` - Symbolic links are not de-referenced.
 - `1` - Symbolic links are de-referenced.
-4. Description - A description of the contents found in the Path.
+1. Description - A description of the contents found in the Path.
 
 `All columns must be populated for each path.`
 
@@ -198,16 +228,17 @@ Contains a tab-delimited table consisting of two columns.  This file contains fi
 Snapshots are executed through:
 
 ```bash
-./scripts/run_snapshot.sh <host> {lkg|Default:current}
+./scripts/run_snapshot.sh <host> [lkg|current] [snapshot_paths_name]
 ```
 
 Examples:
 
 ```bash
-./scripts/run_snapshot.sh k2plus.local lkg
-./scripts/run_snapshot.sh k2plus.local current
-or
 ./scripts/run_snapshot.sh k2plus.local
+./scripts/run_snapshot.sh k2plus.local current
+./scripts/run_snapshot.sh k2plus.local lkg
+./scripts/run_snapshot.sh k2plus.local current default
+./scripts/run_snapshot.sh k2plus.local current custom
 ```
 
 There are two snapshot directories:
@@ -222,7 +253,7 @@ snapshot_current/
 
 When running either a `lkg` or `current` snapshot and the destination is not empty, you will be prompted to verify that you want to empty the directory.
 
-Snapshots are **file copies for comparison**, not restore images. The snapshot script copies the contents of selected paths as they are accessed on the printer. It dereferences symlinks and preserves modification time, but does not preserve owners, groups, permissions, ACLs, or xattrs. Once generated, snapshots are not reused by the scripts. You can rename, delete or move them for whatever purpose you need.
+Snapshots are **file copies for comparison**, not restore images. The snapshot script copies the contents of selected paths as they are accessed on the printer. It preserves modification time and supports per-path symlink dereference behavior configured through the snapshot path configuration file. Once generated, snapshots are not reused by the scripts. You can rename, delete or move them for whatever purpose you need.
 
 The intended workflow is:
 
@@ -368,7 +399,7 @@ This read-only probe emits tab-delimited manifest information for selected areas
 
 Each manifest line includes type, mode, owner IDs, size, mtime, optional SHA256 for small files, symlink target, and path.
 
-This probe is useful for producing a structured inventory, but the project does not rely solely on hashes or manifests for change detection. Actual file snapshots are preferred for final comparison.
+This probe is useful for producing a structured inventory, but the project does not rely solely on hashes or manifests for change detection. Manifest inventories and probe outputs support discovery and validation, but actual file snapshots remain the authoritative comparison source for this project.
 
 ### `scripts/snapshots/snapshot_pull.sh`
 
@@ -376,7 +407,9 @@ Snapshot implementation script used by `run_snapshot.sh`.
 
 This script pulls selected file trees from the printer into either `snapshot_lkg` or `snapshot_current`.
 
-Included source paths:
+Included source paths are determined by the selected snapshot path configuration file.
+
+The `snapshot_paths.default.tsv` contains:
 
 ```text
 /mnt/UDISK/printer_data
@@ -387,7 +420,7 @@ Included source paths:
 /rom
 ```
 
-Excluded noisy or low-value paths include:
+Excluded paths are determined by the selected snapshot exclude configuration file. Excluded paths that are considered noisy or low-value paths include:
 
 ```text
 /mnt/UDISK/printer_data/logs
@@ -408,7 +441,7 @@ Snapshot behavior:
 - does not preserve permissions, owners, groups, ACLs, or xattrs;
 - writes `_snapshot_metadata.txt` into the snapshot directory.
 
-The metadata file records mode, timestamp, target host, runner host/user, repository branch/commit, kernel info, and OpenWrt release info.
+The metadata file records mode, timestamp, target host, runner host/user, kernel info, and OpenWrt release info.
 
 ## Snapshot Notes
 
