@@ -120,7 +120,7 @@ The artifacts created by the probes are relatively small. However, the snapshots
 |5_size_footprint_inventory.sh|<5 kB|~1 min|
 |6_persistent_directory_inventory.sh|<5 kB|~1 min|
 |7_manifest_inventory.sh|<4 MB|~45 min|
-|snapshot_pull.sh (lgg,current)|<7 GB|~25 min|f
+|snapshot_pull.sh (lkg,current)|<7 GB|~25 min|f
 
 ## Probe Execution Model
 
