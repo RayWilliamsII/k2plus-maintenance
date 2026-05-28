@@ -42,8 +42,11 @@ echo
 
 FAILED=0
 
-while IFS=$'\t' read -r NAME SCRIPT_FILE_NAME; do
- 
+#while IFS=$'\t' read -r NAME SCRIPT_FILE_NAME; do
+while IFS=$'\t' read -r NAME SCRIPT_FILE_NAME || [[ -n "${NAME:-}" ]]; do
+  [[ -z "${NAME:-}" ]] && continue
+  [[ "$NAME" =~ ^# ]] && continue
+
   if [[ -z "${SCRIPT_FILE_NAME:-}" ]]; then
     echo "Invalid probeset row: missing ScriptFileName for probe '$NAME'" >&2
     FAILED=1
