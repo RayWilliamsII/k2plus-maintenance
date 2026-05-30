@@ -10,3 +10,6 @@ runs/
 
 # Snapshots
 snapshot_*/
+
+#VSCode Settings
+settings.json
